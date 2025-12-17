@@ -3,8 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE    = 'emnayachi/timesheetproject'
-        
-        DOCKER_CREDS_ID = 'dockerhub-creds'
+        DOCKER_CREDS_ID = 'dockerhub-creds'  
     }
 
     stages {
@@ -25,8 +24,8 @@ pipeline {
 
         stage('Maven Build') {
             steps {
-                sh label: 'Compilation Maven', script: '''
-                    mvn clean compile
+                sh label: 'Maven Package (génération du JAR)', script: '''
+                    mvn clean package -Dmaven.test.skip=true
                 '''
             }
         }
@@ -47,24 +46,28 @@ pipeline {
         stage('Docker Build') {
             steps {
                 sh label: 'Construction de l\'image Docker', script: '''
-                    # Vérification du Dockerfile (présent dans le repo)
                     if [ ! -f Dockerfile ]; then
                         echo "Erreur : Dockerfile non trouvé !"
                         exit 1
                     fi
 
-                    # Build avec tag du build Jenkins + latest
+                    # Vérification que le JAR existe maintenant
+                    if [ ! -f target/timesheet-devops-1.0.jar ]; then
+                        echo "Erreur : JAR non généré dans target/ !"
+                        ls -la target/
+                        exit 1
+                    fi
+
                     docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} \\
                                  -t ${DOCKER_IMAGE}:latest .
                     
-                    echo "Image construite avec succès : ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                    echo "Image construite : ${DOCKER_IMAGE}:${BUILD_NUMBER}"
                 '''
             }
         }
 
         stage('Docker Push') {
             steps {
-                // Tolérance aux problèmes temporaires de Docker Hub
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                     timeout(time: 10, unit: 'MINUTES') {
                         withCredentials([usernamePassword(
@@ -81,7 +84,7 @@ pipeline {
                                 docker push ${DOCKER_IMAGE}:latest
                             '''
 
-                            sh label: 'Logout Docker Hub', script: '''
+                            sh label: 'Logout', script: '''
                                 docker logout || true
                             '''
                         }
@@ -93,14 +96,14 @@ pipeline {
 
     post {
         success {
-            echo 'Build réussi ! Image Docker construite et poussée sur Docker Hub.'
-            echo "Pour lancer l'application : docker run -d -p 8080:8080 ${DOCKER_IMAGE}:latest"
+            echo 'Build réussi ! Image Docker poussée sur Docker Hub : emnayachi/timesheetproject:latest'
+            echo 'Pour lancer l\'app : docker run -d -p 8082:8082 emnayachi/timesheetproject:latest'
         }
         failure {
             echo 'Échec du build - Vérifiez la console pour les erreurs.'
         }
         unstable {
-            echo 'Build instable (probablement un problème temporaire lors du push Docker Hub). L\'image est quand même construite localement.'
+            echo 'Build instable (probablement problème de push Docker Hub). L\'image est construite localement.'
         }
     }
 }
