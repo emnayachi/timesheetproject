@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE    = 'emnayachi/timesheetproject'
-        DOCKER_CREDS_ID = 'jenkins-token'  
+        DOCKER_CREDS_ID = 'dockerhub-creds'  
     }
 
     stages {
