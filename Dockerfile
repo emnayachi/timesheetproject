@@ -1,11 +1,5 @@
-# Use Eclipse Temurin JDK 17
-FROM eclipse-temurin:17-jdk
-
-# Expose your application's port
+FROM eclipse-temurin:17-jre
+WORKDIR /app
 EXPOSE 8082
-
 COPY target/timesheet-devops-1.0.jar app.jar
-
-
-# Run the application
-ENTRYPOINT ["java","-jar","/timesheet-devops-1.0.jar"]
+ENTRYPOINT ["java","-jar","app.jar"]
